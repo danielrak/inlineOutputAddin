@@ -22,13 +22,13 @@ You can install the development version from GitHub:
 
 ``` r
 # install.packages("pak")
-pak::pak("YOUR_GITHUB_USERNAME/inlineOutputAddin")
+pak::pak("danielrak/inlineOutputAddin")
 ```
 
 Or using `remotes`:
 
 ``` r
-remotes::install_github("YOUR_GITHUB_USERNAME/inlineOutputAddin")
+remotes::install_github("danielrak/inlineOutputAddin")
 ```
 
 ## What It Does
