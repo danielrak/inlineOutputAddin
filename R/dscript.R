@@ -1,21 +1,13 @@
-#' Update (or insert) an inline output block under selected code / current line.
+#' Update inline output blocks in an R script (RStudio addin)
 #'
+#' Evaluates selected code (or the current line) and inserts or replaces a
+#' marked output block delimited by `# >>> output` and `# <<< output`.
+#'
+#' @param max_lines Maximum number of output lines to keep.
+#' @param width Print width used when formatting output.
+#' @return Invisibly returns TRUE if an update was performed, otherwise FALSE.
+#' @export
 #' @importFrom utils capture.output
-#'
-#' @param max_lines Maximum lines live-printed within your current script
-#' @param width Print width within your current script
-#'
-#' Markers used:
-#'   # >>> output
-#'   # <<< output
-#'
-#' Behavior:
-#' - If an output block exists immediately below the code, it is replaced.
-#' - Otherwise, a new block is inserted directly below.
-#'
-#' Notes:
-#' - Evaluates in .GlobalEnv (like typical interactive use).
-#' - Captures printed output; errors are captured as "Error: ...".
 dscript <- function(max_lines = 60, width = 80) {
   if (!rstudioapi::isAvailable()) stop("RStudio required for this addin.")
 

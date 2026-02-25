@@ -2,10 +2,12 @@ Package: inlineOutputAddin
 Type: Package
 Title: Inline Output Addin for RStudio
 Version: 0.0.1
-Authors@R: person("You", "Name", email = "you@example.com", role = c("aut","cre"))
-Description: RStudio addin to evaluate code and update inline commented output blocks in .R scripts.
+Authors@R: person("Daniel", "Rakotomalala", email = "rakdanielh@egmail", role = c("aut","cre"))
+Description: Provides an RStudio addin that evaluates selected code and updates a marked, commented output block in an R script.
 License: MIT + file LICENSE
 Encoding: UTF-8
-LazyData: true
 Imports: rstudioapi
 RoxygenNote: 7.3.3
+Depends: R (>= 3.6.0)
+URL: https://github.com/<you>/<repo>
+BugReports: https://github.com/<you>/<repo>/issues
