@@ -2,27 +2,19 @@
 % Please edit documentation in R/dscript.R
 \name{dscript}
 \alias{dscript}
-\title{Update (or insert) an inline output block under selected code / current line.}
+\title{Update inline output blocks in an R script (RStudio addin)}
 \usage{
 dscript(max_lines = 60, width = 80)
 }
 \arguments{
-\item{max_lines}{Maximum lines live-printed within your current script}
+\item{max_lines}{Maximum number of output lines to keep.}
 
-\item{width}{Print width within your current script
-
-Markers used:
-  # >>> output
-  # <<< output
-
-Behavior:
-- If an output block exists immediately below the code, it is replaced.
-- Otherwise, a new block is inserted directly below.
-
-Notes:
-- Evaluates in .GlobalEnv (like typical interactive use).
-- Captures printed output; errors are captured as "Error: ...".}
+\item{width}{Print width used when formatting output.}
+}
+\value{
+Invisibly returns TRUE if an update was performed, otherwise FALSE.
 }
 \description{
-Update (or insert) an inline output block under selected code / current line.
+Evaluates selected code (or the current line) and inserts or replaces a
+marked output block delimited by `# >>> output` and `# <<< output`.
 }
