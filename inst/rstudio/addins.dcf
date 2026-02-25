@@ -1,0 +1,4 @@
+Name: Update Inline Output
+Description: Evaluate selection/current line and update the marked output block below it.
+Binding: dscript
+Interactive: true
