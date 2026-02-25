@@ -100,4 +100,4 @@ This addin provides a lightweight way to keep code and results together without 
 
 ## License
 
-MIT © Your Name
+MIT © Daniel Rakotomalala

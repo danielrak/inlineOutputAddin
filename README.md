@@ -106,4 +106,4 @@ without switching to R Markdown or Quarto.
 
 ## License
 
-MIT © Your Name
+MIT © Daniel Rakotomalala
