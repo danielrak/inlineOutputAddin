@@ -90,7 +90,20 @@ dscript <- function(max_lines = 60, width = 80) {
 
   # ---- NO EXISTING BLOCK → INSERT ----
 
-  pos <- rstudioapi::document_position(insert_at, 1)
-  rstudioapi::insertText(pos, paste0(paste(block, collapse = "\n"), "\n"))
+  # If we are inserting, ensure the block starts on a new line.
+  # This avoids the "first run inline" issue when the cursor/selection ends mid-line
+  # or when the file/line has no trailing newline.
+  prefix <- ""
+  if (end_line <= length(contents)) {
+    # If the line where code ends contains non-space characters,
+    # force insertion to begin on a new line.
+    if (nzchar(trimws(contents[[end_line]]))) prefix <- "\n"
+  }
+
+  pos <- rstudioapi::document_position(end_line, nchar(contents[[end_line]]) + 1)
+  rstudioapi::insertText(
+    pos,
+    paste0(prefix, paste(block, collapse = "\n"), "\n")
+  )
   invisible(TRUE)
 }
