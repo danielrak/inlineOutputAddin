@@ -5,50 +5,105 @@
 
 <!-- badges: start -->
 
-[![R-CMD-check](https://github.com/danielrak/inlineOutputAddin/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/danielrak/inlineOutputAddin/actions/workflows/R-CMD-check.yaml)
+<!-- Add badges here later (CRAN, R-CMD-check, etc.) -->
+
 <!-- badges: end -->
 
-The goal of inlineOutputAddin is to …
+`inlineOutputAddin` provides an RStudio addin that evaluates selected R
+code and inserts or updates a marked, commented output block directly in
+an `.R` script.
+
+This makes plain R scripts behave a bit like lightweight notebooks,
+while remaining standard `.R` files.
 
 ## Installation
 
-You can install the development version of inlineOutputAddin from
-[GitHub](https://github.com/) with:
+You can install the development version from GitHub:
 
 ``` r
 # install.packages("pak")
-pak::pak("danielrak/inlineOutputAddin")
+pak::pak("YOUR_GITHUB_USERNAME/inlineOutputAddin")
 ```
 
-## Example
-
-This is a basic example which shows you how to solve a common problem:
+Or using `remotes`:
 
 ``` r
-library(inlineOutputAddin)
-## basic example code
+remotes::install_github("YOUR_GITHUB_USERNAME/inlineOutputAddin")
 ```
 
-What is special about using `README.Rmd` instead of just `README.md`?
-You can include R chunks like so:
+## What It Does
+
+Given code like:
 
 ``` r
-summary(cars)
-#>      speed           dist       
-#>  Min.   : 4.0   Min.   :  2.00  
-#>  1st Qu.:12.0   1st Qu.: 26.00  
-#>  Median :15.0   Median : 36.00  
-#>  Mean   :15.4   Mean   : 42.98  
-#>  3rd Qu.:19.0   3rd Qu.: 56.00  
-#>  Max.   :25.0   Max.   :120.00
+head(mtcars)
 ```
 
-You’ll still need to render `README.Rmd` regularly, to keep `README.md`
-up-to-date. `devtools::build_readme()` is handy for this.
+Running the addin inserts (or updates) a marked output block:
 
-You can also embed plots, for example:
+``` r
+head(mtcars)
+# >>> output
+#                    mpg cyl disp  hp drat    wt  qsec vs am gear carb
+# Mazda RX4         21.0   6  160 110 3.90 2.620 16.46  0  1    4    4
+# ...
+# <<< output
+```
 
-<img src="man/figures/README-pressure-1.png" alt="" width="100%" />
+If the code changes and the addin is run again, the existing output
+block is automatically replaced.
 
-In that case, don’t forget to commit and push the resulting figure
-files, so they display on GitHub and CRAN.
+## How to Use
+
+1.  Open an `.R` script in RStudio.
+
+2.  Select code (or place the cursor on a single line).
+
+3.  Run the addin:
+
+    - Via **Addins → Update Inline Output**
+    - Or assign a keyboard shortcut in:
+      `Tools → Modify Keyboard Shortcuts`
+
+The function evaluates the code in the global environment and:
+
+- Inserts a new output block if none exists
+- Replaces the existing `# >>> output` / `# <<< output` block if present
+
+## Output Markers
+
+The addin uses the following markers:
+
+    # >>> output
+    # <<< output
+
+Everything between them is treated as generated output and may be
+replaced on the next run.
+
+## Notes
+
+- The addin requires **RStudio**.
+- It captures printed console output.
+- Long outputs are truncated for readability.
+- It does not modify code outside the marked output block.
+
+## Example (Non-interactive)
+
+Because this functionality depends on RStudio, examples are guarded:
+
+``` r
+if (rstudioapi::isAvailable()) {
+  # dscript()
+}
+```
+
+## Motivation
+
+Plain `.R` scripts are often preferred in institutional or production
+settings.  
+This addin provides a lightweight way to keep code and results together
+without switching to R Markdown or Quarto.
+
+## License
+
+MIT © Your Name
