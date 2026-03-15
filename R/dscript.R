@@ -9,25 +9,83 @@
 #' @export
 #' @importFrom utils capture.output
 dscript <- function(max_lines = 60, width = 80) {
-  if (!rstudioapi::isAvailable()) stop("RStudio required for this addin.")
+  if (!rstudioapi::isAvailable()) {
+    stop("RStudio required for this addin.", call. = FALSE)
+  }
 
   ctx <- rstudioapi::getActiveDocumentContext()
   sel <- ctx$selection[[1]]
   contents <- ctx$contents
 
+  cursor_line <- sel$range$start[1]
   start_line <- sel$range$start[1]
-  end_line   <- sel$range$end[1]
+  end_line <- sel$range$end[1]
+
+  # Helper: find full top-level expression around the cursor if nothing is selected
+  find_expression_bounds <- function(lines, line_idx) {
+    n <- length(lines)
+
+    is_expr_complete <- function(txt) {
+      if (!nzchar(trimws(txt))) return(FALSE)
+      res <- tryCatch(parse(text = txt), error = function(e) NULL)
+      !is.null(res)
+    }
+
+    # Expand upward
+    start <- line_idx
+    while (start > 1) {
+      candidate <- paste(lines[start - 1:line_idx], collapse = "\n")
+      parsed <- tryCatch(parse(text = candidate), error = function(e) NULL)
+      if (is.null(parsed)) {
+        start <- start - 1
+      } else {
+        break
+      }
+    }
+
+    # Expand downward until parse succeeds
+    end <- line_idx
+    repeat {
+      candidate <- paste(lines[start:end], collapse = "\n")
+      if (is_expr_complete(candidate)) break
+      if (end >= n) break
+      end <- end + 1
+    }
+
+    # If still not valid, try a more exhaustive local search
+    candidate <- paste(lines[start:end], collapse = "\n")
+    if (!is_expr_complete(candidate)) {
+      best <- NULL
+      for (s in seq_len(line_idx)) {
+        for (e in seq(line_idx, n)) {
+          txt <- paste(lines[s:e], collapse = "\n")
+          if (is_expr_complete(txt)) {
+            best <- c(s, e)
+          }
+        }
+      }
+      if (!is.null(best)) {
+        start <- best[1]
+        end <- best[2]
+      }
+    }
+
+    c(start, end)
+  }
 
   code <- sel$text
 
-  # If nothing selected, use current line
+  # If nothing selected, detect the whole expression around cursor
   if (!nzchar(code)) {
-    code <- contents[[start_line]]
+    bounds <- find_expression_bounds(contents, cursor_line)
+    start_line <- bounds[1]
+    end_line <- bounds[2]
+    code <- paste(contents[start_line:end_line], collapse = "\n")
+
     if (!nzchar(trimws(code))) return(invisible(FALSE))
   }
 
-  # Remove inline marker if user wrote:
-  # head(cars) # >>> output
+  # Remove inline marker if present on last line of code
   code <- sub("\\s*#\\s*>>>\\s*output.*$", "", code)
 
   old_opt <- options(width = width)
@@ -42,8 +100,10 @@ dscript <- function(max_lines = 60, width = 80) {
   )
 
   if (length(out) > max_lines) {
-    out <- c(out[seq_len(max_lines)],
-             sprintf("... (truncated to %d lines)", max_lines))
+    out <- c(
+      out[seq_len(max_lines)],
+      sprintf("... (truncated to %d lines)", max_lines)
+    )
   }
 
   block <- c(
@@ -56,15 +116,17 @@ dscript <- function(max_lines = 60, width = 80) {
 
   # ---- FIND EXISTING BLOCK ----
 
-  # Case 1: marker is on same line
-  same_line_has_marker <- grepl("#\\s*>>>\\s*output", contents[[start_line]])
+  # Case 1: inline marker on the last line of the code block
+  same_line_has_marker <- grepl("#\\s*>>>\\s*output", contents[[end_line]])
 
   if (same_line_has_marker) {
-    i <- start_line + 1
+    i <- end_line + 1
   } else {
-    # Case 2: marker is below (skip blank lines)
+    # Case 2: marker below code block
     i <- insert_at
-    while (i <= length(contents) && trimws(contents[[i]]) == "") i <- i + 1
+    while (i <= length(contents) && trimws(contents[[i]]) == "") {
+      i <- i + 1
+    }
   }
 
   has_start <- i <= length(contents) &&
@@ -82,28 +144,23 @@ dscript <- function(max_lines = 60, width = 80) {
         rstudioapi::document_position(i, 1),
         rstudioapi::document_position(j, nchar(contents[[j]]) + 1)
       )
-
       rstudioapi::modifyRange(rng, paste(block, collapse = "\n"))
       return(invisible(TRUE))
     }
   }
 
-  # ---- NO EXISTING BLOCK → INSERT ----
+  # ---- NO EXISTING BLOCK -> INSERT ----
 
-  # If we are inserting, ensure the block starts on a new line.
-  # This avoids the "first run inline" issue when the cursor/selection ends mid-line
-  # or when the file/line has no trailing newline.
-  prefix <- ""
-  if (end_line <= length(contents)) {
-    # If the line where code ends contains non-space characters,
-    # force insertion to begin on a new line.
-    if (nzchar(trimws(contents[[end_line]]))) prefix <- "\n"
-  }
+  # Insert at end of last code line, forcing a newline before the block
+  pos <- rstudioapi::document_position(
+    end_line,
+    nchar(contents[[end_line]]) + 1
+  )
 
-  pos <- rstudioapi::document_position(end_line, nchar(contents[[end_line]]) + 1)
   rstudioapi::insertText(
     pos,
-    paste0(prefix, paste(block, collapse = "\n"), "\n")
+    paste0("\n", paste(block, collapse = "\n"), "\n")
   )
+
   invisible(TRUE)
 }
