@@ -12,9 +12,9 @@ dscript(max_lines = 60, width = 80)
 \item{width}{Print width used when formatting output.}
 }
 \value{
-Invisibly returns TRUE if an update was performed, otherwise FALSE.
+Invisibly returns `TRUE` if an update was performed, otherwise `FALSE`.
 }
 \description{
-Evaluates selected code (or the current line) and inserts or replaces a
-marked output block delimited by `# >>> output` and `# <<< output`.
+Evaluates selected code (or the current top-level expression) and inserts or
+replaces a marked output block delimited by `# >>> output` and `# <<< output`.
 }
