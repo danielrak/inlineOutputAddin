@@ -64,3 +64,21 @@ test_that("magrittr pipe is made available when installed", {
   out <- .ioa_evaluate("c(1, 2, 3) %>% sum()", envir = new.env())
   expect_equal(out, "[1] 6")
 })
+
+test_that("injected magrittr pipes do not persist in the environment", {
+  skip_if_not_installed("magrittr")
+  # A baseenv parent keeps any attached magrittr out of scope, so the operator
+  # must be injected and is therefore a meaningful cleanup test.
+  e <- new.env(parent = baseenv())
+  out <- .ioa_evaluate("c(1, 2, 3) %>% sum()", envir = e)
+  expect_equal(out, "[1] 6")
+  expect_false(exists("%>%", envir = e, inherits = FALSE))
+})
+
+test_that("a failing pipe expression leaves no operators behind", {
+  skip_if_not_installed("magrittr")
+  e <- new.env(parent = baseenv())
+  out <- .ioa_evaluate("no_such_var %>% sum()", envir = e)
+  expect_true(any(grepl("^Error:", out)))
+  expect_false(exists("%>%", envir = e, inherits = FALSE))
+})

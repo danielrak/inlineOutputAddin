@@ -267,10 +267,16 @@ dscript <- function(max_lines = 60, width = 80) {
 }
 
 #' Make magrittr pipe operators available if they are not already resolvable.
+#'
+#' Operators are only injected when they cannot already be resolved from
+#' `envir` (e.g. magrittr is installed but not attached). The names of any
+#' operators actually injected are returned so the caller can remove them
+#' again, leaving the environment exactly as it found it.
 #' @noRd
 .ioa_make_pipes_available <- function(envir) {
+  injected <- character()
   if (!requireNamespace("magrittr", quietly = TRUE)) {
-    return(invisible())
+    return(injected)
   }
   ops <- c("%>%", "%T>%", "%$%", "%<>%")
   for (op in ops) {
@@ -279,9 +285,10 @@ dscript <- function(max_lines = 60, width = 80) {
     }
     if (exists(op, envir = asNamespace("magrittr"), inherits = FALSE)) {
       assign(op, getFromNamespace(op, "magrittr"), envir = envir)
+      injected <- c(injected, op)
     }
   }
-  invisible()
+  injected
 }
 
 #' Print a value, rendering plots to the active device but emitting a textual
@@ -362,7 +369,16 @@ dscript <- function(max_lines = 60, width = 80) {
     return(character())
   }
 
-  .ioa_make_pipes_available(envir)
+  # Pipe operators are made available only for the duration of this
+  # evaluation and removed again afterwards (even on error), so running code
+  # never leaves magrittr operators behind in the user's environment.
+  injected_ops <- .ioa_make_pipes_available(envir)
+  if (length(injected_ops) > 0) {
+    on.exit(
+      suppressWarnings(rm(list = injected_ops, envir = envir)),
+      add = TRUE
+    )
+  }
 
   out <- character()
   for (expr in exprs) {
