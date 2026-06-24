@@ -66,16 +66,12 @@ The function evaluates the code in the global environment and:
 - Replaces the existing `# >>> output` / `# <<< output` block if present
 
 Because evaluation happens in the global environment, objects you create
-persist between runs. This makes it natural to build up data step by step:
+persist between runs. A plain assignment prints nothing in the console, so
+(just like running it there) the addin adds no output block and simply runs
+the code. The object is then available for the next run:
 
 ```r
-df <- data.frame(x = 1:3, y = c("a", "b", "c"))
-# >>> output
-#   x y
-# 1 1 a
-# 2 2 b
-# 3 3 c
-# <<< output
+df <- data.frame(x = 1:3, y = c("a", "b", "c"))   # runs; no output block added
 
 nrow(df)   # df is still available on the next run
 # >>> output
