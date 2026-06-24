@@ -2,4 +2,3 @@
 
 export(dscript)
 importFrom(utils,capture.output)
-importFrom(utils,getFromNamespace)

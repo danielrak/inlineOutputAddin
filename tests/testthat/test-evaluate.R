@@ -59,26 +59,25 @@ test_that("native pipe is supported", {
   expect_equal(out, "[1] 6")
 })
 
-test_that("magrittr pipe is made available when installed", {
+test_that("magrittr pipe works when magrittr is attached", {
   skip_if_not_installed("magrittr")
-  out <- .ioa_evaluate("c(1, 2, 3) %>% sum()", envir = new.env())
-  expect_equal(out, "[1] 6")
-})
-
-test_that("injected magrittr pipes do not persist in the environment", {
-  skip_if_not_installed("magrittr")
-  # A baseenv parent keeps any attached magrittr out of scope, so the operator
-  # must be injected and is therefore a meaningful cleanup test.
-  e <- new.env(parent = baseenv())
+  # Evaluate in an environment whose search path includes magrittr, mirroring
+  # a session where the user has run library(magrittr).
+  e <- new.env(parent = asNamespace("magrittr"))
   out <- .ioa_evaluate("c(1, 2, 3) %>% sum()", envir = e)
   expect_equal(out, "[1] 6")
-  expect_false(exists("%>%", envir = e, inherits = FALSE))
 })
 
-test_that("a failing pipe expression leaves no operators behind", {
-  skip_if_not_installed("magrittr")
+test_that("an unavailable operator errors just like the console", {
+  # baseenv() as parent keeps any attached magrittr out of scope, so `%>%`
+  # is unresolvable and must error rather than being silently injected.
   e <- new.env(parent = baseenv())
-  out <- .ioa_evaluate("no_such_var %>% sum()", envir = e)
+  out <- .ioa_evaluate("c(1, 2) %>% sum()", envir = e)
   expect_true(any(grepl("^Error:", out)))
-  expect_false(exists("%>%", envir = e, inherits = FALSE))
+})
+
+test_that("evaluation injects nothing into the environment", {
+  e <- new.env(parent = baseenv())
+  .ioa_evaluate("x <- 1", envir = e)
+  expect_equal(ls(e, all.names = TRUE), "x")
 })

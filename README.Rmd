@@ -82,7 +82,8 @@ nrow(df)   # df is still available on the next run
 The addin works with most common analysis code, including:
 
 - Multi-line expressions (the whole top-level call is evaluated)
-- Both the native pipe `|>` and the magrittr pipe `%>%` (when installed)
+- Both the native pipe `|>` and the magrittr pipe `%>%` (when you have
+  attached magrittr, e.g. via `library(magrittr)` or `library(dplyr)`)
 - `print()` output, `cat()` output, messages and warnings
 - Errors, which are reported inside the block rather than interrupting you
 

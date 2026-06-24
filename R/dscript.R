@@ -19,7 +19,7 @@
 #'   `FALSE`.
 #'
 #' @export
-#' @importFrom utils capture.output getFromNamespace
+#' @importFrom utils capture.output
 dscript <- function(max_lines = 60, width = 80) {
   if (!requireNamespace("rstudioapi", quietly = TRUE) ||
       !rstudioapi::isAvailable()) {
@@ -266,31 +266,6 @@ dscript <- function(max_lines = 60, width = 80) {
   c(line_idx, line_idx)
 }
 
-#' Make magrittr pipe operators available if they are not already resolvable.
-#'
-#' Operators are only injected when they cannot already be resolved from
-#' `envir` (e.g. magrittr is installed but not attached). The names of any
-#' operators actually injected are returned so the caller can remove them
-#' again, leaving the environment exactly as it found it.
-#' @noRd
-.ioa_make_pipes_available <- function(envir) {
-  injected <- character()
-  if (!requireNamespace("magrittr", quietly = TRUE)) {
-    return(injected)
-  }
-  ops <- c("%>%", "%T>%", "%$%", "%<>%")
-  for (op in ops) {
-    if (exists(op, envir = envir, inherits = TRUE)) {
-      next
-    }
-    if (exists(op, envir = asNamespace("magrittr"), inherits = FALSE)) {
-      assign(op, getFromNamespace(op, "magrittr"), envir = envir)
-      injected <- c(injected, op)
-    }
-  }
-  injected
-}
-
 #' Print a value, rendering plots to the active device but emitting a textual
 #' placeholder (graphics produce no capturable text).
 #' @noRd
@@ -369,17 +344,11 @@ dscript <- function(max_lines = 60, width = 80) {
     return(character())
   }
 
-  # Pipe operators are made available only for the duration of this
-  # evaluation and removed again afterwards (even on error), so running code
-  # never leaves magrittr operators behind in the user's environment.
-  injected_ops <- .ioa_make_pipes_available(envir)
-  if (length(injected_ops) > 0) {
-    on.exit(
-      suppressWarnings(rm(list = injected_ops, envir = envir)),
-      add = TRUE
-    )
-  }
-
+  # Evaluation happens in the supplied environment (the global environment in
+  # normal use) against the live search path, exactly as if the code had been
+  # sent to the console. No operators or helpers are injected, so an
+  # unavailable pipe (e.g. `%>%` without magrittr attached) fails just as it
+  # would on `Ctrl+Enter`.
   out <- character()
   for (expr in exprs) {
     res <- .ioa_eval_one(expr, envir)
