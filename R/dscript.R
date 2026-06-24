@@ -31,6 +31,19 @@ dscript <- function(max_lines = 60, width = 80) {
     length(x) == 0 || !nzchar(trimws(paste(x, collapse = "\n")))
   }
 
+  # Split a string into individual physical lines so that the leading `# `
+  # comment prefix applies to every line. Condition messages (and some
+  # errors/warnings) carry embedded or trailing newlines which, left intact,
+  # would leak uncommented text into the `.R` script.
+  split_lines <- function(x) {
+    x <- gsub("\r", "", x, fixed = TRUE)
+    x <- sub("\n+$", "", x)
+    if (!nzchar(x)) {
+      return("")
+    }
+    strsplit(x, "\n", fixed = TRUE)[[1]]
+  }
+
   find_expression_bounds <- function(lines, line_idx) {
     full_text <- paste(lines, collapse = "\n")
 
@@ -66,26 +79,27 @@ dscript <- function(max_lines = 60, width = 80) {
     c(best[1], best[2])
   }
 
-  build_eval_env <- function() {
-    eval_env <- new.env(parent = .GlobalEnv)
+  # Evaluate in the global environment so the addin behaves exactly like
+  # running the code (assignments and other side effects persist). magrittr
+  # pipe operators are temporarily made available when the package is
+  # installed but not attached, then removed again on exit.
+  inject_pipe_operators <- function() {
+    injected <- character()
 
     if (requireNamespace("magrittr", quietly = TRUE)) {
-      assign("%>%", getFromNamespace("%>%", "magrittr"), envir = eval_env)
+      ns <- asNamespace("magrittr")
+      ops <- c("%>%", "%T>%", "%$%", "%<>%")
 
-      if (exists("%T>%", envir = asNamespace("magrittr"), inherits = FALSE)) {
-        assign("%T>%", getFromNamespace("%T>%", "magrittr"), envir = eval_env)
-      }
-
-      if (exists("%$%", envir = asNamespace("magrittr"), inherits = FALSE)) {
-        assign("%$%", getFromNamespace("%$%", "magrittr"), envir = eval_env)
-      }
-
-      if (exists("%<>%", envir = asNamespace("magrittr"), inherits = FALSE)) {
-        assign("%<>%", getFromNamespace("%<>%", "magrittr"), envir = eval_env)
+      for (op in ops) {
+        if (exists(op, envir = ns, inherits = FALSE) &&
+            !exists(op, envir = .GlobalEnv, inherits = TRUE)) {
+          assign(op, getFromNamespace(op, "magrittr"), envir = .GlobalEnv)
+          injected <- c(injected, op)
+        }
       }
     }
 
-    eval_env
+    injected
   }
 
   code <- sel$text
@@ -122,7 +136,13 @@ dscript <- function(max_lines = 60, width = 80) {
   if (inherits(exprs, "dscript_parse_error")) {
     out <- unclass(exprs)
   } else {
-    eval_env <- build_eval_env()
+    injected_ops <- inject_pipe_operators()
+    if (length(injected_ops)) {
+      on.exit(
+        suppressWarnings(rm(list = injected_ops, envir = .GlobalEnv)),
+        add = TRUE
+      )
+    }
 
     for (expr in exprs) {
       warnings <- character()
@@ -133,7 +153,7 @@ dscript <- function(max_lines = 60, width = 80) {
       expr_out <- tryCatch(
         withCallingHandlers(
           capture.output({
-            res <- withVisible(eval(expr, envir = eval_env))
+            res <- withVisible(eval(expr, envir = .GlobalEnv))
             value <- res$value
             visible <- isTRUE(res$visible)
 
@@ -172,9 +192,14 @@ dscript <- function(max_lines = 60, width = 80) {
       out <- c(out, expr_out)
     }
 
-    if (length(out) == 0) {
-      out <- ""
-    }
+  }
+
+  # Normalise every entry to a single physical line so the `# ` comment
+  # prefix below applies to all of it (messages, warnings and multi-line
+  # errors may otherwise contain embedded newlines).
+  out <- unlist(lapply(out, split_lines), use.names = FALSE)
+  if (is.null(out)) {
+    out <- character()
   }
 
   if (length(out) > max_lines) {
@@ -184,20 +209,15 @@ dscript <- function(max_lines = 60, width = 80) {
     )
   }
 
-  block <- c(
-    "# >>> output",
-    if (length(out)) paste0("# ", out) else "#",
-    "# <<< output"
-  )
+  has_output <- length(out) > 0
 
-  insert_at <- end_line + 1
-
+  # Locate an existing output block immediately following the code.
   same_line_has_marker <- grepl("#\\s*>>>\\s*output", contents[[end_line]])
 
   if (same_line_has_marker) {
     i <- end_line + 1
   } else {
-    i <- insert_at
+    i <- end_line + 1
     while (i <= length(contents) && trimws(contents[[i]]) == "") {
       i <- i + 1
     }
@@ -206,6 +226,7 @@ dscript <- function(max_lines = 60, width = 80) {
   has_start <- i <= length(contents) &&
     grepl("^#\\s*>>>\\s*output\\s*$", trimws(contents[[i]]))
 
+  block_end <- NA_integer_
   if (has_start) {
     j <- i + 1
     while (j <= length(contents) &&
@@ -214,13 +235,48 @@ dscript <- function(max_lines = 60, width = 80) {
     }
 
     if (j <= length(contents)) {
+      block_end <- j
+    }
+  }
+
+  has_block <- !is.na(block_end)
+
+  if (!has_output) {
+    # The code printed nothing to the console (e.g. `x <- c(1, 2)`): behave
+    # exactly like running the code. Never insert an output block; only drop
+    # a stale one left over from a previous run.
+    if (has_block) {
+      del_start_row <- i - 1
       rng <- rstudioapi::document_range(
-        rstudioapi::document_position(i, 1),
-        rstudioapi::document_position(j, nchar(contents[[j]]) + 1)
+        rstudioapi::document_position(
+          del_start_row,
+          nchar(contents[[del_start_row]]) + 1
+        ),
+        rstudioapi::document_position(
+          block_end,
+          nchar(contents[[block_end]]) + 1
+        )
       )
-      rstudioapi::modifyRange(rng, paste(block, collapse = "\n"))
+      rstudioapi::modifyRange(rng, "")
       return(invisible(TRUE))
     }
+
+    return(invisible(FALSE))
+  }
+
+  block <- c(
+    "# >>> output",
+    paste0("# ", out),
+    "# <<< output"
+  )
+
+  if (has_block) {
+    rng <- rstudioapi::document_range(
+      rstudioapi::document_position(i, 1),
+      rstudioapi::document_position(block_end, nchar(contents[[block_end]]) + 1)
+    )
+    rstudioapi::modifyRange(rng, paste(block, collapse = "\n"))
+    return(invisible(TRUE))
   }
 
   pos <- rstudioapi::document_position(
