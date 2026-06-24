@@ -70,6 +70,31 @@ The function evaluates the code in the global environment and:
 - Inserts a new output block if none exists
 - Replaces the existing `# >>> output` / `# <<< output` block if present
 
+Because evaluation happens in the global environment, objects you create
+persist between runs. This makes it natural to build up data step by step:
+
+``` r
+df <- data.frame(x = 1:3, y = c("a", "b", "c"))
+# >>> output
+#   x y
+# 1 1 a
+# 2 2 b
+# 3 3 c
+# <<< output
+
+nrow(df)   # df is still available on the next run
+# >>> output
+# [1] 3
+# <<< output
+```
+
+The addin works with most common analysis code, including:
+
+- Multi-line expressions (the whole top-level call is evaluated)
+- Both the native pipe `|>` and the magrittr pipe `%>%` (when installed)
+- `print()` output, `cat()` output, messages and warnings
+- Errors, which are reported inside the block rather than interrupting you
+
 ## Output Markers
 
 The addin uses the following markers:
@@ -84,7 +109,9 @@ replaced on the next run.
 
 - The addin requires **RStudio**.
 - It captures printed console output.
-- Long outputs are truncated for readability.
+- Long outputs are truncated for readability (`max_lines`).
+- ggplot/grid plots are drawn in the Plots pane and recorded as a
+  `<plot rendered>` placeholder in the block.
 - It does not modify code outside the marked output block.
 
 ## Example (Non-interactive)
