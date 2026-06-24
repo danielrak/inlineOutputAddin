@@ -16,5 +16,13 @@ Invisibly returns `TRUE` if an update was performed, otherwise `FALSE`.
 }
 \description{
 Evaluates selected code (or the current top-level expression) and inserts or
-replaces a marked output block delimited by `# >>> output` and `# <<< output`.
+replaces a marked output block delimited by `# >>> output` and
+`# <<< output`.
+}
+\details{
+Code is evaluated in the global environment, so objects created while
+building or analysing data persist between runs (exactly as if the code had
+been sent to the console). Printed values, `cat()` output, messages and
+warnings are captured; errors are reported in the block instead of
+interrupting the editor.
 }
