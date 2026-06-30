@@ -71,6 +71,16 @@ dscript <- function(max_lines = 60, width = 80) {
   # Locate an existing block immediately below the code (skipping blank lines).
   loc <- .ioa_locate_existing_block(contents, end_line)
 
+  # Place the cursor at the end of the code that was just run (its last line),
+  # so focus stays where execution ended rather than jumping past the inserted
+  # output block. The code line itself is never altered by the edits below, so
+  # this position stays valid in every branch.
+  place_cursor_at_code_end <- function() {
+    rstudioapi::setCursorPosition(
+      rstudioapi::document_position(end_line, nchar(contents[[end_line]]) + 1)
+    )
+  }
+
   if (length(out) == 0) {
     # The code printed nothing to the console (e.g. `x <- c(1, 2)`): behave
     # exactly like running the code. Never insert an output block; only drop a
@@ -86,9 +96,9 @@ dscript <- function(max_lines = 60, width = 80) {
         )
       )
       rstudioapi::modifyRange(rng, "")
-      return(invisible(TRUE))
     }
-    return(invisible(FALSE))
+    place_cursor_at_code_end()
+    return(invisible(!is.null(loc)))
   }
 
   block_text <- paste(.ioa_build_block(out), collapse = "\n")
@@ -99,6 +109,7 @@ dscript <- function(max_lines = 60, width = 80) {
       rstudioapi::document_position(loc$end, nchar(contents[[loc$end]]) + 1)
     )
     rstudioapi::modifyRange(rng, block_text)
+    place_cursor_at_code_end()
     return(invisible(TRUE))
   }
 
@@ -107,6 +118,7 @@ dscript <- function(max_lines = 60, width = 80) {
     nchar(contents[[end_line]]) + 1
   )
   rstudioapi::insertText(pos, paste0("\n", block_text, "\n"))
+  place_cursor_at_code_end()
 
   invisible(TRUE)
 }
